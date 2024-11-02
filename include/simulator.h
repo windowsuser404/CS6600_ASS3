@@ -1,4 +1,15 @@
+#pragma once
+#ifndef SIM_H
+#define SIM_H
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdio>
+#include <fstream>
+#include <iostream>
 #include <queue>
+#include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -10,6 +21,8 @@ using ullong = unsigned long long;
 void parser();
 
 class OOOE;
+class Scheduling_queue_entry;
+class Scheduling_queue;
 
 // pre define latency cycle
 #define Type0 0
@@ -23,7 +36,7 @@ class OOOE;
 
 enum INS_STATE { IF, ID, IS, EX, WB };
 
-typedef uint Reg_number;
+typedef ullong Reg_number;
 
 class Register {
   friend OOOE;
@@ -31,6 +44,12 @@ class Register {
 private:
   bool valid;
   ullong tag;
+
+public:
+  Register(bool valid, ullong tag) {
+    this->valid = valid;
+    this->tag = tag;
+  }
 };
 
 class Instruction {
@@ -46,27 +65,16 @@ private:
   Reg_number src2;
 
 public:
-  void initiate();
+  Instruction(uint op, int tag, uint S1, uint S2, uint DST);
   void decrease_latency();
   bool is_finished() { return (latency_left == 0); }
   void put_state(INS_STATE state);
   INS_STATE get_state() { return curr_state; }
 };
 
-// class ROB_entry {
-// private:
-//   Instruction *instruction;
-//   bool src1_stat;
-//   bool src2_stat;
-//   int tag;
-//
-// public:
-// };
-
-// a linked list for scheduling, could be a struct tbh, but keep it as a class
-// for now
 class Scheduling_queue_entry {
   friend OOOE;
+  friend Scheduling_queue;
 
 private:
   Scheduling_queue_entry *nxt_entry;
@@ -76,7 +84,12 @@ private:
   Register src2;
 
 public:
-  Scheduling_queue_entry(Instruction *&ins, Reg_number &S1, Reg_number &S2);
+  Scheduling_queue_entry(Instruction *&ins, bool src1_stat, ullong src1_tag,
+                         bool src2_stat, ullong src2_tag)
+      : curr_ins(ins), src1(src1_stat, src1_tag), src2(src2_stat, src2_tag) {
+    nxt_entry = nullptr;
+    prev_entry = nullptr;
+  }
 };
 
 class Scheduling_queue {
@@ -93,21 +106,11 @@ public:
   void ins_remove(
       Scheduling_queue_entry *to_rem); // dont forget to check if removing head
   ullong get_size() { return size; }
+  Scheduling_queue();
 };
 
-// Copying same code as Scheduling, the needed functionality seems same
-// class Executing_queue_entry {
-//   Executing_queue_entry *nxt_entry;
-//   Executing_queue_entry *prev_entry;
-//   Instruction *curr_ins;
-// };
-//
-// class Executing_queue {
-//   Executing_queue_entry *head;
-//   ullong size;
-// };
-
-// Copying same code as Scheduling, the needed functionality seems same
+// Copying same code as Scheduling, the needed functionality seems same,
+// actually, doesnt need source registers, so can actually remove those later
 using Executing_queue_entry = Scheduling_queue_entry;
 using Executing_queue = Scheduling_queue;
 
@@ -129,16 +132,16 @@ private:
 
   // functions
   // checks if given instruction is ready
-  bool is_ready(Instruction *&ins);
+  bool is_ready(Scheduling_queue_entry *&ins);
   // marks the relevant registers and stations as ready
-  void mark_ready(uint &tag);
+  void mark_ready(ullong &tag);
   // get the next instruction, return false if no more to dispatch
   bool get_the_ins(Instruction *&to_dispatch);
   // load all ins
-  void read_ins();
+  void read_ins(string filepath);
 
 public:
-  OOOE(uint Dispatch_size, uint Schedule_size);
+  OOOE(uint N, uint S, string filepath);
   void retire();
   void execute();
   void issue();
@@ -146,3 +149,5 @@ public:
   void fetch();
   bool advance_cycle();
 };
+
+#endif
