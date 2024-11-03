@@ -1,6 +1,6 @@
 # Set the compiler and compiler flags
 CC = g++
-OPT = -O3
+OPT = -O0
 WARN = -Wall
 CFLAGS = $(OPT) $(WARN) -I$(INCLUDE_DIR) -g
 

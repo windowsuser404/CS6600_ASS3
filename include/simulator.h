@@ -129,6 +129,7 @@ private:
   uint Schedule_size; // S
   // which instruction is being pointed to
   uint ins_pointer;
+  uint cycle;
 
   // functions
   // checks if given instruction is ready

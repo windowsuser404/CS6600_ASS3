@@ -2,3 +2,4 @@
 *.sh
 ooosim
 build/*
+.gdb_history
