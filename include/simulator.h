@@ -60,9 +60,9 @@ private:
   uint latency_left;
   uint op_type;
   int tag;
-  Reg_number dst;
   Reg_number src1;
   Reg_number src2;
+  Reg_number dst;
 
 public:
   Instruction(uint op, int tag, uint S1, uint S2, uint DST);
@@ -124,7 +124,7 @@ private:
   Executing_queue execute_list;
   queue<Instruction *> ROB_table;
   // register file, stores whether valid, the tag
-  vector<Register> register_array = vector<Register>(REG_FILE_SIZE);
+  vector<Register> register_array;
   uint Dispatch_size; // N
   uint Schedule_size; // S
   // which instruction is being pointed to

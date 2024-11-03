@@ -22,7 +22,7 @@ Scheduling_queue::Scheduling_queue() {
 }
 
 Instruction::Instruction(uint op, int tag, uint S1, uint S2, uint DST)
-    : src1(S1), src2(S2), dst(DST), tag(tag), op_type(op) {
+    : op_type(op), tag(tag), src1(S1), src2(S2), dst(DST) {
   switch (op) {
   default:
     cout << "unknown types, sus" << endl;

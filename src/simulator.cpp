@@ -171,8 +171,7 @@ OOOE::OOOE(uint N, uint S, string filepath)
     : Dispatch_size(N), Schedule_size(S) {
   ins_pointer = 0;
   for (uint i = 0; i < REG_FILE_SIZE; i++) {
-    register_array[i].tag = 0;
-    register_array[i].valid = true;
+    register_array.emplace_back(true, i);
   }
   read_ins(filepath);
 }
