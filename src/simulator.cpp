@@ -24,22 +24,27 @@ void OOOE::execute() {
   while (curr_entry != nullptr) {
     curr_entry->curr_ins->decrease_latency();
     if (curr_entry->curr_ins->is_finished()) {
+      finished_exec_list.push_back(curr_entry);
+    }
+    curr_entry = curr_entry->nxt_entry;
+  }
+}
+
+void OOOE::execute_commit() {
+  Executing_queue_entry *finished_ins;
+  for (uint i = 0; i < finished_exec_list.size(); i++) {
+    finished_ins = finished_exec_list[i];
 
 #if DEBUG
-      cout << "ins" << curr_entry->curr_ins->tag - REG_FILE_SIZE << " jover"
-           << endl;
+    cout << "ins" << finished_ins->curr_ins->tag - REG_FILE_SIZE << " jover"
+         << endl;
 #endif
 
-      mark_ready(curr_entry->curr_ins->dst);
-      curr_entry->curr_ins->put_state(WB);
-      // new curr entry made, remove the prev one from list
-      execute_list.ins_remove(curr_entry);
-      Executing_queue_entry *to_delete = curr_entry;
-      curr_entry = curr_entry->nxt_entry;
-      delete to_delete;
-    } else {
-      curr_entry = curr_entry->nxt_entry;
-    }
+    mark_ready(finished_ins->curr_ins->dst);
+    finished_ins->curr_ins->put_state(WB);
+    // new curr entry made, remove the prev one from list
+    execute_list.ins_remove(finished_ins);
+    delete finished_ins;
   }
 }
 
@@ -48,31 +53,35 @@ void OOOE::issue() {
   uint count = 0;
   while ((curr_entry != nullptr) && (count < Dispatch_size)) {
     if (is_ready(curr_entry)) {
-      Instruction *the_ins = curr_entry->curr_ins;
+      to_execute_list.push_back(curr_entry);
+      count++;
+    }
+    curr_entry = curr_entry->nxt_entry;
+  }
+}
+
+void OOOE::issue_commit() {
+  Scheduling_queue_entry *to_exec;
+  for (uint i = 0; i < to_execute_list.size(); i++) {
+    to_exec = to_execute_list[i];
+    Instruction *the_ins = to_exec->curr_ins;
 
 #if DEBUG
-      cout << "issuing ins" << the_ins->tag - REG_FILE_SIZE << endl;
+    cout << "issuing ins" << the_ins->tag - REG_FILE_SIZE << endl;
 #endif
 
-      the_ins->put_state(EX);
-      register_array[the_ins->dst].valid = 0;
-      register_array[the_ins->dst].tag = curr_entry->curr_ins->tag;
-      count++;
-      // adding to executing queueA
-      ullong src1 = the_ins->src1;
-      ullong src2 = the_ins->src2;
-      Executing_queue_entry *to_add = new Executing_queue_entry(
-          the_ins, register_array[src1].valid, register_array[src1].tag,
-          register_array[src2].valid, register_array[src2].tag);
-      execute_list.ins_add(to_add);
-      issue_list.ins_remove(curr_entry);
-      Scheduling_queue_entry *to_delete = curr_entry;
-      curr_entry = curr_entry->nxt_entry;
-      delete to_delete;
-    } else {
-      curr_entry = curr_entry->nxt_entry;
-    }
-    count++;
+    the_ins->put_state(EX);
+    register_array[the_ins->dst].valid = 0;
+    register_array[the_ins->dst].tag = to_exec->curr_ins->tag;
+    // adding to executing queueA
+    ullong src1 = the_ins->src1;
+    ullong src2 = the_ins->src2;
+    Executing_queue_entry *to_add = new Executing_queue_entry(
+        the_ins, register_array[src1].valid, register_array[src1].tag,
+        register_array[src2].valid, register_array[src2].tag);
+    execute_list.ins_add(to_add);
+    issue_list.ins_remove(to_exec);
+    delete to_exec;
   }
 }
 
@@ -82,27 +91,7 @@ void OOOE::dispatch() {
   while ((issue_list.size < Schedule_size) && (count < Dispatch_size) &&
          (!dispatch_list.empty())) {
     Instruction *ins = dispatch_list.front();
-
-#if DEBUG
-    cout << "Dispatching ins" << ins->tag - REG_FILE_SIZE << endl;
-#endif
-
-    ins->put_state(IS);
-    ullong src1 = ins->src1;
-    ullong src2 = ins->src2;
-
-#if DEBUG
-    // cout << "src1 " << src1 << " src2 " << src2 << endl;
-    // if (src1 == 4294967295 || src2 == 4294967295) {
-    //   cout << "hmm -1 still lingers in " << ins->tag << endl;
-    // }
-#endif
-
-    dispatch_list.pop();
-    Scheduling_queue_entry *to_add = new Scheduling_queue_entry(
-        ins, register_array[src1].valid, register_array[src1].tag,
-        register_array[src2].valid, register_array[src2].tag);
-    issue_list.ins_add(to_add);
+    to_issue_list.push_back(ins);
     count++;
   }
 
@@ -114,14 +103,34 @@ void OOOE::dispatch() {
 #endif
 }
 
+void OOOE::dispatch_commit() {
+  Instruction *to_issue;
+  for (uint i = 0; i < to_issue_list.size(); i++) {
+    to_issue = to_issue_list[i];
+
+#if DEBUG
+    cout << "Dispatching ins" << to_issue->tag - REG_FILE_SIZE << endl;
+#endif
+
+    to_issue->put_state(IS);
+    ullong src1 = to_issue->src1;
+    ullong src2 = to_issue->src2;
+
+    dispatch_list.pop();
+    Scheduling_queue_entry *to_add = new Scheduling_queue_entry(
+        to_issue, register_array[src1].valid, register_array[src1].tag,
+        register_array[src2].valid, register_array[src2].tag);
+    issue_list.ins_add(to_add);
+  }
+}
+
 void OOOE::fetch() {
   uint count = 0;
   while ((dispatch_list.size() < 2 * Dispatch_size) &&
          (count < Dispatch_size)) {
     Instruction *to_dispatch;
     if (get_the_ins(to_dispatch)) {
-      to_dispatch->put_state(ID);
-      dispatch_list.push(to_dispatch);
+      to_dispatch_list.push_back(to_dispatch);
       count++;
     } else {
       break;
@@ -129,8 +138,25 @@ void OOOE::fetch() {
   }
 }
 
+void OOOE::fetch_commit() {
+  Instruction *to_dispatch;
+  for (uint i = 0; i < to_dispatch_list.size(); i++) {
+    to_dispatch = to_dispatch_list[i];
+    to_dispatch->put_state(ID);
+    dispatch_list.push(to_dispatch);
+  }
+}
+
 bool OOOE::advance_cycle() {
+  execute_commit();
+  issue_commit();
+  dispatch_commit();
+  fetch_commit();
   cycle++;
+  to_dispatch_list.clear();
+  to_issue_list.clear();
+  to_execute_list.clear();
+  finished_exec_list.clear();
 #if DEBUG
   cout << endl << "Doing cycle " << cycle << endl;
   if (ins_pointer == ALL_ins.size() - 1) {

@@ -40,7 +40,7 @@ Instruction::Instruction(uint op, int tag, uint S1, uint S2, uint DST)
   }
   // currently issue and then execute, so one "extra" cycle im adding to account
   // for this
-  latency_left++;
+  // latency_left++;
 }
 
 void Scheduling_queue::ins_add(Scheduling_queue_entry *to_add) {

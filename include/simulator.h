@@ -131,6 +131,12 @@ private:
   uint ins_pointer;
   uint cycle;
 
+  // vector later user for comitting
+  vector<Instruction *> to_dispatch_list;
+  vector<Instruction *> to_issue_list;
+  vector<Scheduling_queue_entry *> to_execute_list;
+  vector<Executing_queue_entry *> finished_exec_list;
+
   // functions
   // checks if given instruction is ready
   bool is_ready(Scheduling_queue_entry *&ins);
@@ -140,6 +146,11 @@ private:
   bool get_the_ins(Instruction *&to_dispatch);
   // load all ins
   void read_ins(string filepath);
+  void retire_commit();
+  void execute_commit();
+  void issue_commit();
+  void dispatch_commit();
+  void fetch_commit();
 
 public:
   OOOE(uint N, uint S, string filepath);
