@@ -21,8 +21,10 @@ Scheduling_queue::Scheduling_queue() {
   size = 0;
 }
 
-Instruction::Instruction(uint op, int tag, uint S1, uint S2, uint DST)
-    : op_type(op), tag(tag), src1(S1), src2(S2), dst(DST) {
+Instruction::Instruction(uint op, int tag, uint S1, uint S2, uint DST,
+                         bool HAS_SRC1, bool HAS_SRC2, bool HAS_DST)
+    : op_type(op), tag(tag), src1(S1), src2(S2), dst(DST), has_src1(HAS_SRC1),
+      has_src2(HAS_SRC2), has_dst(HAS_DST) {
   switch (op) {
   default:
     cout << "unknown types, sus" << endl;
@@ -85,3 +87,20 @@ void Scheduling_queue::ins_remove(Scheduling_queue_entry *to_rem) {
   }
   size--;
 }
+
+#if DEBUG
+
+void Scheduling_queue::print_queue() {
+  cout << "ins src1 src1V src2 src2V" << endl;
+  Scheduling_queue_entry *head = this->head;
+  Instruction *temp;
+  while (head != nullptr) {
+    temp = head->curr_ins;
+    cout << temp->tag - REG_FILE_SIZE << " " << head->src1.tag << " "
+         << head->src1.valid << " " << head->src2.tag << " " << head->src2.valid
+         << endl;
+    head = head->nxt_entry;
+  }
+}
+
+#endif

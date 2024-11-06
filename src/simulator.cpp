@@ -1,20 +1,22 @@
 #include "../include/simulator.h"
 
-#define DEBUG 1
-
 void OOOE::retire() {
-  if (!ROB_table.empty()) {
-    // execute till non WB is found
-    while (true) {
-      Instruction *rob_top = ROB_table.front();
-      if (rob_top->get_state() == WB) {
-        // delete the entry since it has finished
-        // delete rob_top;
-        ROB_table.pop();
-      } else {
-        // non WB entry found, stop retiring more
-        break;
-      }
+  // execute till non WB is found
+  while (!ROB_table.empty()) {
+    Instruction *rob_top = ROB_table.front();
+#if DEBUG
+    cout << "ROB TOP has ins" << rob_top->tag - REG_FILE_SIZE << endl;
+#endif
+    if (rob_top->get_state() == WB) {
+// delete the entry since it has finished
+// delete rob_top;
+#if DEBUG
+      cout << "Retiring ins" << rob_top->tag - REG_FILE_SIZE << endl;
+#endif
+      ROB_table.pop();
+    } else {
+      // non WB entry found, stop retiring more
+      break;
     }
   }
 }
@@ -31,6 +33,8 @@ void OOOE::execute() {
 }
 
 void OOOE::execute_commit() {
+  cout << "commiting executed stuff, size=" << finished_exec_list.size()
+       << endl;
   Executing_queue_entry *finished_ins;
   for (uint i = 0; i < finished_exec_list.size(); i++) {
     finished_ins = finished_exec_list[i];
@@ -40,7 +44,7 @@ void OOOE::execute_commit() {
          << endl;
 #endif
 
-    mark_ready(finished_ins->curr_ins->dst);
+    mark_ready(finished_ins->curr_ins->tag);
     finished_ins->curr_ins->put_state(WB);
     // new curr entry made, remove the prev one from list
     execute_list.ins_remove(finished_ins);
@@ -55,6 +59,17 @@ void OOOE::issue() {
     if (is_ready(curr_entry)) {
       to_execute_list.push_back(curr_entry);
       count++;
+    } else {
+#if DEBUG
+      cout << "ins " << curr_entry->curr_ins->tag - REG_FILE_SIZE
+           << " is not issued" << endl;
+      cout << "src1=" << curr_entry->src1.tag
+           << " and has_src1=" << curr_entry->has_src1
+           << " is valid=" << curr_entry->src1.valid << endl;
+      cout << "src2=" << curr_entry->src2.tag
+           << " and has_src2=" << curr_entry->has_src2
+           << " is valid=" << curr_entry->src2.valid << endl;
+#endif
     }
     curr_entry = curr_entry->nxt_entry;
   }
@@ -71,14 +86,14 @@ void OOOE::issue_commit() {
 #endif
 
     the_ins->put_state(EX);
-    register_array[the_ins->dst].valid = 0;
-    register_array[the_ins->dst].tag = to_exec->curr_ins->tag;
     // adding to executing queueA
-    ullong src1 = the_ins->src1;
-    ullong src2 = the_ins->src2;
-    Executing_queue_entry *to_add = new Executing_queue_entry(
-        the_ins, register_array[src1].valid, register_array[src1].tag,
-        register_array[src2].valid, register_array[src2].tag);
+    Register src1 = to_exec->src1;
+    Register src2 = to_exec->src2;
+    bool has_src1 = to_exec->has_src1;
+    bool has_src2 = to_exec->has_src2;
+    Executing_queue_entry *to_add =
+        new Executing_queue_entry(the_ins, src1.valid, src1.tag, src2.valid,
+                                  src2.tag, has_src1, has_src2);
     execute_list.ins_add(to_add);
     issue_list.ins_remove(to_exec);
     delete to_exec;
@@ -89,8 +104,8 @@ void OOOE::dispatch() {
   uint count = 0;
   // hopefully dispatch_list never empty, still adding it here
   while ((issue_list.size < Schedule_size) && (count < Dispatch_size) &&
-         (!dispatch_list.empty())) {
-    Instruction *ins = dispatch_list.front();
+         !((dispatch_list.size() - count) == 0)) {
+    Instruction *ins = dispatch_list[count];
     to_issue_list.push_back(ins);
     count++;
   }
@@ -105,6 +120,11 @@ void OOOE::dispatch() {
 
 void OOOE::dispatch_commit() {
   Instruction *to_issue;
+
+#if DEBUG
+  cout << "scheduling " << to_issue_list.size() << " instructions" << endl;
+#endif
+
   for (uint i = 0; i < to_issue_list.size(); i++) {
     to_issue = to_issue_list[i];
 
@@ -113,13 +133,20 @@ void OOOE::dispatch_commit() {
 #endif
 
     to_issue->put_state(IS);
+    if (to_issue->has_dst) {
+      register_array[to_issue->dst].valid = 0;
+      register_array[to_issue->dst].tag = to_issue->tag;
+    }
     ullong src1 = to_issue->src1;
     ullong src2 = to_issue->src2;
+    bool has_src1 = to_issue->has_src1;
+    bool has_src2 = to_issue->has_src2;
 
-    dispatch_list.pop();
+    dispatch_list.pop_front();
     Scheduling_queue_entry *to_add = new Scheduling_queue_entry(
         to_issue, register_array[src1].valid, register_array[src1].tag,
-        register_array[src2].valid, register_array[src2].tag);
+        register_array[src2].valid, register_array[src2].tag, has_src1,
+        has_src2);
     issue_list.ins_add(to_add);
   }
 }
@@ -143,7 +170,7 @@ void OOOE::fetch_commit() {
   for (uint i = 0; i < to_dispatch_list.size(); i++) {
     to_dispatch = to_dispatch_list[i];
     to_dispatch->put_state(ID);
-    dispatch_list.push(to_dispatch);
+    dispatch_list.push_back(to_dispatch);
   }
 }
 
@@ -152,6 +179,21 @@ bool OOOE::advance_cycle() {
   issue_commit();
   dispatch_commit();
   fetch_commit();
+
+#if DEBUG
+  cout << "Printing the ROB" << endl;
+  print_rob();
+  cout << endl << endl;
+
+  cout << "Printing the schedule list" << endl;
+  issue_list.print_queue();
+  cout << endl << endl;
+
+  cout << "Printing the executing list" << endl;
+  execute_list.print_queue();
+  cout << endl << endl;
+#endif
+
   cycle++;
   to_dispatch_list.clear();
   to_issue_list.clear();
@@ -169,16 +211,21 @@ bool OOOE::advance_cycle() {
     cout << "Nothing to dispatch" << endl;
   }
 #endif
-  return (!ROB_table.empty() || !dispatch_list.empty() ||
-          (ins_pointer != ALL_ins.size() - 1));
+  return ((!ROB_table.empty() || !dispatch_list.empty() ||
+           (ins_pointer != ALL_ins.size())) &&
+          (cycle < 1300));
 }
 
 bool OOOE::is_ready(Scheduling_queue_entry *&ins) {
-  return (ins->src2.valid && ins->src1.valid);
+  return ((ins->src2.valid || !(ins->has_src2)) &&
+          (ins->src1.valid || !(ins->has_src1)));
 }
 
 void OOOE::mark_ready(ullong &tag) {
-  // marking the needed registers as ready
+// marking the needed registers as ready
+#if DEBUG
+  cout << "marking tag=" << tag << endl;
+#endif
   for (uint i = 0; i < REG_FILE_SIZE; i++) {
     if (register_array[i].tag == tag) {
       register_array[i].valid = 1;
@@ -187,10 +234,10 @@ void OOOE::mark_ready(ullong &tag) {
 
   Scheduling_queue_entry *head = issue_list.head;
   while (head != nullptr) {
-    if (head->src1.tag == tag) {
+    if (head->src1.tag == tag || !(head->has_src1)) {
       head->src1.valid = true;
     }
-    if (head->src2.tag == tag) {
+    if (head->src2.tag == tag || !(head->has_src2)) {
       head->src2.valid = true;
     }
     head = head->nxt_entry;
@@ -226,6 +273,10 @@ void OOOE::read_ins(string filePath) {
     string pc_hex;
     uint operation_type;
     int dest_reg, src1_reg, src2_reg;
+    bool has_src1, has_src2, has_dst;
+    has_src1 = 1;
+    has_src2 = 1;
+    has_dst = 1;
     // Read each field from the line
     if (!(iss >> pc_hex >> operation_type >> dest_reg >> src1_reg >>
           src2_reg)) {
@@ -237,19 +288,22 @@ void OOOE::read_ins(string filePath) {
 #if DEBUG
       // cout << "Encountered a -1" << " in" << ins_count << endl;
 #endif
-      src1_reg = REG_FILE_SIZE;
+      src1_reg = REG_FILE_SIZE - 1;
+      has_src1 = false;
     }
     if (src2_reg == -1) {
 #if DEBUG
       // cout << "Encountered a -1" << " in" << ins_count << endl;
 #endif
-      src2_reg = REG_FILE_SIZE;
+      src2_reg = REG_FILE_SIZE - 1;
+      has_src2 = false;
     }
     if (dest_reg == -1) {
 #if DEBUG
       // cout << "Encountered a -1" << " in" << ins_count << endl;
 #endif
-      dest_reg = REG_FILE_SIZE;
+      dest_reg = REG_FILE_SIZE - 1;
+      has_dst = false;
     }
 #if DEBUG
     // cout << "src1 src2 dst" << src1_reg << src2_reg << dest_reg << endl;
@@ -261,7 +315,7 @@ void OOOE::read_ins(string filePath) {
     // register tag
     Instruction *ins =
         new Instruction(operation_type, ins_count + REG_FILE_SIZE, src1_reg,
-                        src2_reg, dest_reg);
+                        src2_reg, dest_reg, has_src1, has_src2, has_dst);
     ALL_ins.push_back(ins);
     ROB_table.push(ins);
     ins_count++;
@@ -283,3 +337,9 @@ OOOE::OOOE(uint N, uint S, string filepath)
   cout << "Total ins = " << ALL_ins.size() << endl;
 #endif
 }
+
+#if DEBUG
+void OOOE::print_rob() {
+  //
+}
+#endif

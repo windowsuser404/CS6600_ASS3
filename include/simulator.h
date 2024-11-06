@@ -1,6 +1,9 @@
 #pragma once
+#include <deque>
 #ifndef SIM_H
 #define SIM_H
+
+#define DEBUG 1
 
 #include <algorithm>
 #include <cstddef>
@@ -32,7 +35,7 @@ class Scheduling_queue;
 #define Type1_lat 2
 #define Type2_lat 10
 
-#define REG_FILE_SIZE 128
+#define REG_FILE_SIZE 129
 
 enum INS_STATE { IF, ID, IS, EX, WB };
 
@@ -41,7 +44,11 @@ typedef ullong Reg_number;
 class Register {
   friend OOOE;
 
+#if DEBUG
+public:
+#else
 private:
+#endif
   bool valid;
   ullong tag;
 
@@ -55,17 +62,25 @@ public:
 class Instruction {
   friend OOOE;
 
+#if DEBUG
+public:
+#else
 private:
+#endif
   INS_STATE curr_state;
   uint latency_left;
   uint op_type;
-  int tag;
+  ullong tag;
   Reg_number src1;
   Reg_number src2;
   Reg_number dst;
+  bool has_src1;
+  bool has_src2;
+  bool has_dst;
 
 public:
-  Instruction(uint op, int tag, uint S1, uint S2, uint DST);
+  Instruction(uint op, int tag, uint S1, uint S2, uint DST, bool HAS_SRC1,
+              bool HAS_SRC2, bool HAS_DST);
   void decrease_latency();
   bool is_finished() { return (latency_left == 0); }
   void put_state(INS_STATE state);
@@ -82,11 +97,15 @@ private:
   Instruction *curr_ins;
   Register src1;
   Register src2;
+  bool has_src1;
+  bool has_src2;
 
 public:
   Scheduling_queue_entry(Instruction *&ins, bool src1_stat, ullong src1_tag,
-                         bool src2_stat, ullong src2_tag)
-      : curr_ins(ins), src1(src1_stat, src1_tag), src2(src2_stat, src2_tag) {
+                         bool src2_stat, ullong src2_tag, bool HAS_SRC1,
+                         bool HAS_SRC2)
+      : curr_ins(ins), src1(src1_stat, src1_tag), src2(src2_stat, src2_tag),
+        has_src1(HAS_SRC1), has_src2(HAS_SRC2) {
     nxt_entry = nullptr;
     prev_entry = nullptr;
   }
@@ -107,6 +126,9 @@ public:
       Scheduling_queue_entry *to_rem); // dont forget to check if removing head
   ullong get_size() { return size; }
   Scheduling_queue();
+#if DEBUG
+  void print_queue();
+#endif
 };
 
 // Copying same code as Scheduling, the needed functionality seems same,
@@ -119,7 +141,7 @@ class OOOE {
 
 private:
   vector<Instruction *> ALL_ins;
-  queue<Instruction *> dispatch_list;
+  deque<Instruction *> dispatch_list;
   Scheduling_queue issue_list;
   Executing_queue execute_list;
   queue<Instruction *> ROB_table;
@@ -160,6 +182,10 @@ public:
   void dispatch();
   void fetch();
   bool advance_cycle();
+
+#if DEBUG
+  void print_rob();
+#endif
 };
 
 #endif
