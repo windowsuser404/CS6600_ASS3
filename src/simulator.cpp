@@ -5,13 +5,13 @@ void OOOE::retire() {
   while (!ROB_table.empty()) {
     Instruction *rob_top = ROB_table.front();
 #if DEBUG
-    cout << "ROB TOP has ins" << rob_top->tag - REG_FILE_SIZE << endl;
+    cout << "ROB TOP has ins" << rob_top->tag - REG_FILE_SIZE + 1 << endl;
 #endif
     if (rob_top->get_state() == WB) {
 // delete the entry since it has finished
 // delete rob_top;
 #if DEBUG
-      cout << "Retiring ins" << rob_top->tag - REG_FILE_SIZE << endl;
+      cout << "Retiring ins" << rob_top->tag - REG_FILE_SIZE + 1 << endl;
 #endif
       ROB_table.pop();
     } else {
@@ -40,7 +40,7 @@ void OOOE::execute_commit() {
     finished_ins = finished_exec_list[i];
 
 #if DEBUG
-    cout << "ins" << finished_ins->curr_ins->tag - REG_FILE_SIZE << " jover"
+    cout << "ins" << finished_ins->curr_ins->tag - REG_FILE_SIZE + 1 << " jover"
          << endl;
 #endif
 
@@ -61,7 +61,7 @@ void OOOE::issue() {
       count++;
     } else {
 #if DEBUG
-      cout << "ins " << curr_entry->curr_ins->tag - REG_FILE_SIZE
+      cout << "ins " << curr_entry->curr_ins->tag - REG_FILE_SIZE + 1
            << " is not issued" << endl;
       cout << "src1=" << curr_entry->src1.tag
            << " and has_src1=" << curr_entry->has_src1
@@ -82,7 +82,7 @@ void OOOE::issue_commit() {
     Instruction *the_ins = to_exec->curr_ins;
 
 #if DEBUG
-    cout << "issuing ins" << the_ins->tag - REG_FILE_SIZE << endl;
+    cout << "issuing ins" << the_ins->tag - REG_FILE_SIZE + 1 << endl;
 #endif
 
     the_ins->put_state(EX);
@@ -129,14 +129,11 @@ void OOOE::dispatch_commit() {
     to_issue = to_issue_list[i];
 
 #if DEBUG
-    cout << "Dispatching ins" << to_issue->tag - REG_FILE_SIZE << endl;
+    cout << "Dispatching ins" << to_issue->tag - REG_FILE_SIZE + 1 << endl;
 #endif
 
     to_issue->put_state(IS);
-    if (to_issue->has_dst) {
-      register_array[to_issue->dst].valid = 0;
-      register_array[to_issue->dst].tag = to_issue->tag;
-    }
+
     ullong src1 = to_issue->src1;
     ullong src2 = to_issue->src2;
     bool has_src1 = to_issue->has_src1;
@@ -147,6 +144,15 @@ void OOOE::dispatch_commit() {
         to_issue, register_array[src1].valid, register_array[src1].tag,
         register_array[src2].valid, register_array[src2].tag, has_src1,
         has_src2);
+
+    if (to_issue->has_dst) {
+#if DEBUG
+      cout << "marking reg " << to_issue->dst << " as " << to_issue->tag
+           << endl;
+#endif
+      register_array[to_issue->dst].valid = 0;
+      register_array[to_issue->dst].tag = to_issue->tag;
+    }
     issue_list.ins_add(to_add);
   }
 }
@@ -213,7 +219,7 @@ bool OOOE::advance_cycle() {
 #endif
   return ((!ROB_table.empty() || !dispatch_list.empty() ||
            (ins_pointer != ALL_ins.size())) &&
-          (cycle < 1300));
+          (true));
 }
 
 bool OOOE::is_ready(Scheduling_queue_entry *&ins) {

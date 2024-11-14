@@ -96,7 +96,7 @@ void Scheduling_queue::print_queue() {
   Instruction *temp;
   while (head != nullptr) {
     temp = head->curr_ins;
-    cout << temp->tag - REG_FILE_SIZE << " " << head->src1.tag << " "
+    cout << temp->tag - REG_FILE_SIZE + 1 << " " << head->src1.tag << " "
          << head->src1.valid << " " << head->src2.tag << " " << head->src2.valid
          << endl;
     head = head->nxt_entry;
