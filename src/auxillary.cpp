@@ -4,6 +4,53 @@
 
 using namespace std;
 
+void Instruction::print_durs() {
+  ullong IF = this->durations.IF;
+  ullong ID = this->durations.ID;
+  ullong EX = this->durations.EX;
+  ullong IS = this->durations.IS;
+  ullong WB = this->durations.WB;
+  ////////////IF////////////////
+  cout << "IF{" << ID - 1 << ",";
+  cout << 1 << "} ";
+  ////////////ID////////////////
+  cout << "ID{" << ID << ",";
+  cout << IS - ID << "} ";
+  ////////////IS////////////////
+  cout << "IS{" << IS << ",";
+  cout << EX - IS << "} ";
+  ////////////EX////////////////
+  cout << "EX{" << EX << ",";
+  cout << WB - EX << "} ";
+  ////////////WB////////////////
+  cout << "WB{" << WB << ",";
+  cout << 1 << "} ";
+}
+
+void Instruction::print_info() {
+  int src1 = this->src1;
+  int src2 = this->src2;
+  int dst = this->dst;
+  if (src1 == REG_FILE_SIZE - 1) {
+    src1 = -1;
+  }
+  if (src2 == REG_FILE_SIZE - 1) {
+    src2 = -1;
+  }
+  if (dst == REG_FILE_SIZE - 1) {
+    dst = -1;
+  }
+  cout << this->tag - REG_FILE_SIZE << " ";
+  cout << "fu{" << this->op_type << "} ";
+  cout << "src{" << src1 << ",";
+  cout << src2 << "} ";
+  cout << "dst{" << dst << "} ";
+
+  print_durs();
+
+  cout << endl;
+}
+
 void Instruction::decrease_latency() {
   if (latency_left == 0) {
     cout << "wrongly decreasing latency" << endl;
@@ -43,6 +90,11 @@ Instruction::Instruction(uint op, int tag, uint S1, uint S2, uint DST,
   // currently issue and then execute, so one "extra" cycle im adding to account
   // for this
   // latency_left++;
+  durations.EX = -1;
+  durations.ID = -1;
+  durations.IF = -1;
+  durations.IS = -1;
+  durations.WB = -1;
 }
 
 void Scheduling_queue::ins_add(Scheduling_queue_entry *to_add) {

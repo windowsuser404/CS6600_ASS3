@@ -20,20 +20,21 @@ int main(int argc, char *argv[]) {
   int S = std::stoi(argv[2]);       // Schedule queue size
   std::string trace_file = argv[3]; // Trace file path
 
+  OOOE my_sim(N, S, trace_file);
+
+  do {
+    my_sim.retire();
+    my_sim.execute();
+    my_sim.issue();
+    my_sim.dispatch();
+    my_sim.fetch();
+  } while (my_sim.advance_cycle());
+  my_sim.print_output();
+
   // Print the parsed values (for debugging purposes)
   std::cout << "Superscalar Bandwidth (N): " << N << std::endl;
   std::cout << "Schedule Queue Size (S): " << S << std::endl;
   std::cout << "Trace File: " << trace_file << std::endl;
-
-  OOOE my_sim(N, S, trace_file);
-
-  while (my_sim.advance_cycle()) {
-    my_sim.retire();
-    my_sim.issue();
-    my_sim.execute();
-    my_sim.dispatch();
-    my_sim.fetch();
-  }
 
   return 0;
 }

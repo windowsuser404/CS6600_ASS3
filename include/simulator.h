@@ -3,7 +3,7 @@
 #ifndef SIM_H
 #define SIM_H
 
-#define DEBUG 1
+#define DEBUG 0
 
 #include <algorithm>
 #include <cstddef>
@@ -36,6 +36,14 @@ class Scheduling_queue;
 #define Type2_lat 10
 
 #define REG_FILE_SIZE 129
+
+typedef struct stage_duration {
+  ullong IF;
+  ullong ID;
+  ullong IS;
+  ullong EX;
+  ullong WB;
+} stage_duration;
 
 enum INS_STATE { IF, ID, IS, EX, WB };
 
@@ -77,6 +85,7 @@ private:
   bool has_src1;
   bool has_src2;
   bool has_dst;
+  stage_duration durations;
 
 public:
   Instruction(uint op, int tag, uint S1, uint S2, uint DST, bool HAS_SRC1,
@@ -85,6 +94,8 @@ public:
   bool is_finished() { return (latency_left == 0); }
   void put_state(INS_STATE state);
   INS_STATE get_state() { return curr_state; }
+  void print_durs();
+  void print_info();
 };
 
 class Scheduling_queue_entry {
@@ -152,6 +163,8 @@ private:
   // which instruction is being pointed to
   uint ins_pointer;
   uint cycle;
+  // idk y lmfao, we need to keep track of this for sim to work
+  ullong ins_disped;
 
   // vector later user for comitting
   vector<Instruction *> to_dispatch_list;
@@ -182,6 +195,7 @@ public:
   void dispatch();
   void fetch();
   bool advance_cycle();
+  void print_output();
 
 #if DEBUG
   void print_rob();

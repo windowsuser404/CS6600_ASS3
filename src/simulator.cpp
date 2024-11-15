@@ -30,11 +30,14 @@ void OOOE::execute() {
     }
     curr_entry = curr_entry->nxt_entry;
   }
+  execute_commit();
 }
 
 void OOOE::execute_commit() {
+#if DEBUG
   cout << "commiting executed stuff, size=" << finished_exec_list.size()
        << endl;
+#endif
   Executing_queue_entry *finished_ins;
   for (uint i = 0; i < finished_exec_list.size(); i++) {
     finished_ins = finished_exec_list[i];
@@ -46,6 +49,7 @@ void OOOE::execute_commit() {
 
     mark_ready(finished_ins->curr_ins->tag);
     finished_ins->curr_ins->put_state(WB);
+    finished_ins->curr_ins->durations.WB = cycle;
     // new curr entry made, remove the prev one from list
     execute_list.ins_remove(finished_ins);
     delete finished_ins;
@@ -73,6 +77,7 @@ void OOOE::issue() {
     }
     curr_entry = curr_entry->nxt_entry;
   }
+  issue_commit();
 }
 
 void OOOE::issue_commit() {
@@ -86,6 +91,7 @@ void OOOE::issue_commit() {
 #endif
 
     the_ins->put_state(EX);
+    the_ins->durations.EX = cycle;
     // adding to executing queueA
     Register src1 = to_exec->src1;
     Register src2 = to_exec->src2;
@@ -103,11 +109,13 @@ void OOOE::issue_commit() {
 void OOOE::dispatch() {
   uint count = 0;
   // hopefully dispatch_list never empty, still adding it here
-  while ((issue_list.size < Schedule_size) && (count < Dispatch_size) &&
+  // since comiiting later, add count also to check the size
+  while ((issue_list.size + count < Schedule_size) && (count < Dispatch_size) &&
          !((dispatch_list.size() - count) == 0)) {
     Instruction *ins = dispatch_list[count];
     to_issue_list.push_back(ins);
     count++;
+    ins_disped++;
   }
 
 #if DEBUG
@@ -116,6 +124,7 @@ void OOOE::dispatch() {
     cout << "Scheduling_queue = " << issue_list.size << endl;
   }
 #endif
+  dispatch_commit();
 }
 
 void OOOE::dispatch_commit() {
@@ -133,6 +142,7 @@ void OOOE::dispatch_commit() {
 #endif
 
     to_issue->put_state(IS);
+    to_issue->durations.IS = cycle;
 
     ullong src1 = to_issue->src1;
     ullong src2 = to_issue->src2;
@@ -159,7 +169,8 @@ void OOOE::dispatch_commit() {
 
 void OOOE::fetch() {
   uint count = 0;
-  while ((dispatch_list.size() < 2 * Dispatch_size) &&
+  // same, add count and check if size overflowing
+  while ((dispatch_list.size() + count + ins_disped < 2 * Dispatch_size) &&
          (count < Dispatch_size)) {
     Instruction *to_dispatch;
     if (get_the_ins(to_dispatch)) {
@@ -169,6 +180,7 @@ void OOOE::fetch() {
       break;
     }
   }
+  fetch_commit();
 }
 
 void OOOE::fetch_commit() {
@@ -176,15 +188,17 @@ void OOOE::fetch_commit() {
   for (uint i = 0; i < to_dispatch_list.size(); i++) {
     to_dispatch = to_dispatch_list[i];
     to_dispatch->put_state(ID);
+    to_dispatch->durations.ID = cycle;
     dispatch_list.push_back(to_dispatch);
   }
 }
 
 bool OOOE::advance_cycle() {
-  execute_commit();
-  issue_commit();
-  dispatch_commit();
-  fetch_commit();
+  ins_disped = 0;
+  // execute_commit();
+  // issue_commit();
+  // dispatch_commit();
+  // fetch_commit();
 
 #if DEBUG
   cout << "Printing the ROB" << endl;
@@ -333,7 +347,7 @@ void OOOE::read_ins(string filePath) {
 OOOE::OOOE(uint N, uint S, string filepath)
     : Dispatch_size(N), Schedule_size(S) {
   ins_pointer = 0;
-  cycle = 0;
+  cycle = 1;
   for (uint i = 0; i < REG_FILE_SIZE + 1; i++) {
     register_array.emplace_back(true, i);
   }
@@ -349,3 +363,9 @@ void OOOE::print_rob() {
   //
 }
 #endif
+
+void OOOE::print_output() {
+  for (uint i = 0; i < ALL_ins.size(); i++) {
+    ALL_ins[i]->print_info();
+  }
+}
