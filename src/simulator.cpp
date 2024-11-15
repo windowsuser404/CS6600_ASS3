@@ -347,7 +347,7 @@ void OOOE::read_ins(string filePath) {
 OOOE::OOOE(uint N, uint S, string filepath)
     : Dispatch_size(N), Schedule_size(S) {
   ins_pointer = 0;
-  cycle = 1;
+  cycle = 0;
   for (uint i = 0; i < REG_FILE_SIZE + 1; i++) {
     register_array.emplace_back(true, i);
   }

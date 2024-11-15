@@ -151,7 +151,6 @@ using Executing_queue = Scheduling_queue;
 class OOOE {
 
 private:
-  vector<Instruction *> ALL_ins;
   deque<Instruction *> dispatch_list;
   Scheduling_queue issue_list;
   Executing_queue execute_list;
@@ -162,7 +161,6 @@ private:
   uint Schedule_size; // S
   // which instruction is being pointed to
   uint ins_pointer;
-  uint cycle;
   // idk y lmfao, we need to keep track of this for sim to work
   ullong ins_disped;
 
@@ -188,6 +186,8 @@ private:
   void fetch_commit();
 
 public:
+  uint cycle;
+  vector<Instruction *> ALL_ins;
   OOOE(uint N, uint S, string filepath);
   void retire();
   void execute();

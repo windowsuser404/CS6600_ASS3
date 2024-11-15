@@ -1,6 +1,8 @@
 #include "../include/simulator.h"
 #include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -32,9 +34,15 @@ int main(int argc, char *argv[]) {
   my_sim.print_output();
 
   // Print the parsed values (for debugging purposes)
-  std::cout << "Superscalar Bandwidth (N): " << N << std::endl;
-  std::cout << "Schedule Queue Size (S): " << S << std::endl;
-  std::cout << "Trace File: " << trace_file << std::endl;
+  cout << "CONFIGURATION" << endl;
+  cout << " superscalar bandwidth (N) = " << N << endl;
+  cout << " dispatch queue size (2*N) = " << 2 * N << endl;
+  cout << " schedule queue size (S) = " << S << endl;
+  cout << "RESULTS" << endl;
+  cout << " number of instructions = " << my_sim.ALL_ins.size() << endl;
+  cout << " number of cycles = " << my_sim.cycle - 1 << endl;
+  cout << " IPC = " << setprecision(3)
+       << my_sim.ALL_ins.size() / (float)my_sim.cycle << endl;
 
   return 0;
 }
